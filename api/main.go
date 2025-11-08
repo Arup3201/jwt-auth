@@ -40,12 +40,49 @@ type Tokens struct {
 	AccessToken string `json:"access_token"`
 }
 
+type User struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	IsAdmin  bool   `json:"-"`
+}
+
+type Config struct {
+	SecretKey string
+}
+
+/* Global variables */
+
+var configs = Config{}
+
+var Users = []User{
+	{
+		Username: "admin01",
+		Password: "topsecret01",
+		IsAdmin:  true,
+	},
+	{
+		Username: "admin01",
+		Password: "topsecret01",
+		IsAdmin:  true,
+	},
+	{
+		Username: "user01",
+		Password: "secret01",
+		IsAdmin:  false,
+	},
+	{
+		Username: "user02",
+		Password: "secret02",
+		IsAdmin:  false,
+	},
+}
+
 /* Utility functions */
 
-func generateJwtToken(username, secret string) (string, error) {
+func generateJwtToken(username string, isAdmin bool, secret string) (string, error) {
 	jwtPayload := jwt.MapClaims{
 		"username": username,
-		"admin":    true,
+		"admin":    isAdmin,
 	}
 
 	generator := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtPayload)
@@ -70,46 +107,44 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[ERROR] login payload decode error: %s", err)
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(httpMessage{
-			"error": "invalid username or password",
+			"error": "Invalid username or password",
 			"type":  "BAD_REQUEST",
 		})
 		return
 	}
 
-	if payload.Username != "admin" {
+	var record User
+	for _, user := range Users {
+		if user.Username == payload.Username {
+			if payload.Password != user.Password {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(httpMessage{
+					"error": "Password is not correct",
+					"type":  "BAD_REQUEST",
+				})
+				return
+			} else if payload.Password == user.Password {
+				record = user
+			}
+		}
+	}
+
+	if record.Username == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(httpMessage{
-			"error": "username is not found",
-			"type":  "BAD_REQUEST",
-		})
-		return
-	}
-	if payload.Password != "admin" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(httpMessage{
-			"error": "password is incorrect",
+			"error": "Username is not registered",
 			"type":  "BAD_REQUEST",
 		})
 		return
 	}
 
-	secretKey, ok := os.LookupEnv(ENV_SECRET)
-	if !ok {
-		log.Printf("[ERROR] %s environment variable is missing", ENV_SECRET)
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(httpMessage{
-			"error": "error in the server setup",
-			"type":  "INTERNAL_ERROR",
-		})
-		return
-	}
-
-	jwt, err := generateJwtToken(payload.Username, secretKey)
+	secretKey := configs.SecretKey
+	jwt, err := generateJwtToken(record.Username, record.IsAdmin, secretKey)
 	if err != nil {
 		log.Printf("[ERROR] generating JWT token: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(httpMessage{
-			"error": "error in token generation",
+			"error": "Error while generating login token",
 			"type":  "INTERNAL_ERROR",
 		})
 		return
@@ -131,6 +166,12 @@ func logoutUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	secretKey, ok := os.LookupEnv(ENV_SECRET)
+	if !ok {
+		log.Fatalf("[ERROR] %s environment variable is missing", ENV_SECRET)
+	}
+	configs.SecretKey = secretKey
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/auth/register", registerUser)
 	mux.HandleFunc("POST /api/auth/login", loginUser)

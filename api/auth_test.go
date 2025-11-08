@@ -3,22 +3,32 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"net/http"
+	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 const (
-	TEST_URL_ROOT = "http://localhost:8080"
+	TEST_URL_ROOT   = "http://localhost:8080"
+	TEST_SECRET_KEY = "a-string-secret-at-least-256-bits-long"
 )
+
+func TestMain(m *testing.M) {
+	configs.SecretKey = TEST_SECRET_KEY
+
+	code := m.Run()
+
+	os.Exit(code)
+}
 
 func TestGenerateJwt(t *testing.T) {
 	// prepare
-	username := "admin"
+	username := "admin01"
 
 	// act
-	token, err := generateJwtToken(username, "a-string-secret-at-least-256-bits-long")
+	token, err := generateJwtToken(username, true, TEST_SECRET_KEY)
 
 	// assert
 	if err != nil {
@@ -27,41 +37,38 @@ func TestGenerateJwt(t *testing.T) {
 		return
 	}
 
-	expectedToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI6dHJ1ZSwidXNlcm5hbWUiOiJhZG1pbiJ9.rP2FCArxwPaFsyvVJ5v9WHuI_U2Es1W6EYBnlCxM9LQ"
+	expectedToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI6dHJ1ZSwidXNlcm5hbWUiOiJhZG1pbjAxIn0.pvzh8DWcI9jxwWnFRhTH2RCGslSRpDFsMo2nE7auHls"
 	assert.Equal(t, expectedToken, token)
 }
 
 func TestLogin(t *testing.T) {
 	t.Run("returns access token when valid user logs in", func(t *testing.T) {
 		// prepare
-		username := "admin"
-		password := "admin"
+		username := "admin01"
+		password := "topsecret01"
 		payload, _ := json.Marshal(map[string]any{
 			"username": username,
 			"password": password,
 		})
 		resourcePath := "/api/auth/login"
-		contentType := "application/json"
+		req := httptest.NewRequest("POST", resourcePath, bytes.NewReader(payload))
+		rec := httptest.NewRecorder()
 
 		// act
-		response, err := http.Post(TEST_URL_ROOT+resourcePath, contentType, bytes.NewReader(payload))
+		loginUser(rec, req)
+		response := rec.Result()
 
 		// assert
-		if err != nil {
-			t.Fail()
-			t.Logf("login assert failed: post request failed with payload username=%s, password=%s", username, password)
-			return
-		}
 		assert.Equal(t, 200, response.StatusCode)
 
 		var tokens Tokens
-		if err = json.NewDecoder(response.Body).Decode(&tokens); err != nil {
+		if err := json.NewDecoder(response.Body).Decode(&tokens); err != nil {
 			t.Fail()
 			t.Logf("login assert failed: json encoding failed: %s", err)
 			return
 		}
 
-		expectedAccessToken, err := generateJwtToken(username, "a-string-secret-at-least-256-bits-long")
+		expectedAccessToken, err := generateJwtToken(username, true, TEST_SECRET_KEY)
 		if err != nil {
 			t.Fail()
 			t.Logf("login assert failed: access token generation failed: %s", err)
