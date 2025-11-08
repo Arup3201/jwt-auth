@@ -76,4 +76,42 @@ func TestLogin(t *testing.T) {
 		}
 		assert.Equal(t, expectedAccessToken, tokens.AccessToken)
 	})
+	t.Run("login fails for invalid username", func(t *testing.T) {
+		// prepare
+		username := "randomUser"
+		password := "randomSecret"
+		payload, _ := json.Marshal(map[string]any{
+			"username": username,
+			"password": password,
+		})
+		resourcePath := "/api/auth/login"
+		req := httptest.NewRequest("POST", resourcePath, bytes.NewReader(payload))
+		rec := httptest.NewRecorder()
+
+		// act
+		loginUser(rec, req)
+		response := rec.Result()
+
+		// assert
+		assert.Equal(t, 400, response.StatusCode)
+	})
+	t.Run("login fails for correct username but wrong password", func(t *testing.T) {
+		// prepare
+		username := "admin01"
+		password := "topsecret02"
+		payload, _ := json.Marshal(map[string]any{
+			"username": username,
+			"password": password,
+		})
+		resourcePath := "/api/auth/login"
+		req := httptest.NewRequest("POST", resourcePath, bytes.NewReader(payload))
+		rec := httptest.NewRecorder()
+
+		// act
+		loginUser(rec, req)
+		response := rec.Result()
+
+		// assert
+		assert.Equal(t, 400, response.StatusCode)
+	})
 }
