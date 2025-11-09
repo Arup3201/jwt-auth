@@ -127,7 +127,7 @@ func TestAuthorization(t *testing.T) {
 
 		// act
 		handler := http.HandlerFunc(getUserDetails)
-		authorizationMiddleware(handler).ServeHTTP(rec, req)
+		AuthorizationMiddleware(handler).ServeHTTP(rec, req)
 		response = rec.Result()
 
 		// assert

@@ -16,6 +16,7 @@ import (
 const (
 	HOST                       = "127.0.0.1"
 	PORT                       = 8080
+	UI_HOST                    = "http://localhost:5173"
 	ENV_SECRET                 = "JWT_AUTH_SECRET"
 	JWT_TOKEN_DURATION_SECONDS = 3600 // 1 hour
 	ERROR_BAD_REQUEST          = "BAD_REQUEST"
@@ -26,6 +27,18 @@ const (
 /* Payload and other types */
 
 type httpMessage map[string]any
+
+type Config struct {
+	SecretKey string
+}
+
+type ContextKey string
+
+type Endpoint struct {
+	Method  string
+	URLPath string
+	Handler http.HandlerFunc
+}
 
 type LoginPayload struct {
 	Username string `json:"username"`
@@ -75,12 +88,6 @@ func (j JwtClaims) Validate() error {
 
 	return fmt.Errorf("invalid subject")
 }
-
-type Config struct {
-	SecretKey string
-}
-
-type ContextKey string
 
 /* Utility functions */
 
@@ -191,9 +198,32 @@ var Users = []User{
 
 var authPayloadKey ContextKey = "authPayload"
 
+var endpoints = []Endpoint{
+	{
+		Method:  "POST",
+		URLPath: "/api/auth/register",
+		Handler: registerUser,
+	},
+	{
+		Method:  "POST",
+		URLPath: "/api/auth/login",
+		Handler: loginUser,
+	},
+	{
+		Method:  "POST",
+		URLPath: "/api/auth/logout",
+		Handler: logoutUser,
+	},
+	{
+		Method:  "GET",
+		URLPath: "/api/protected/me",
+		Handler: getUserDetails,
+	},
+}
+
 /* Middlewares */
 
-func loggingMiddleware(next http.Handler) http.Handler {
+func LoggingMiddleware(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("%s %s", r.Method, r.URL.String())
 		next.ServeHTTP(w, r)
@@ -201,7 +231,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func authorizationMiddleware(next http.Handler) http.Handler {
+func AuthorizationMiddleware(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/protected") {
 			authorization := r.Header.Get("Authorization")
@@ -237,6 +267,26 @@ func authorizationMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)
+}
+
+func CORSMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			for _, e := range endpoints {
+				if strings.Contains(r.URL.Path, e.URLPath) {
+					w.Header().Set("Access-Control-Allow-Origin", UI_HOST)
+					w.Header().Set("Access-Control-Allow-Methods", e.Method)
+					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+			}
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 /* Handlers */
@@ -329,14 +379,13 @@ func main() {
 	configs.SecretKey = secretKey
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/auth/register", registerUser)
-	mux.HandleFunc("POST /api/auth/login", loginUser)
-	mux.HandleFunc("POST /api/auth/logout", logoutUser)
-	mux.HandleFunc("GET /api/protected/me", getUserDetails)
+	for _, e := range endpoints {
+		mux.HandleFunc(fmt.Sprintf("%s %s", e.Method, e.URLPath), e.Handler)
+	}
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", HOST, PORT),
-		Handler:      loggingMiddleware(authorizationMiddleware(mux)),
+		Handler:      LoggingMiddleware(CORSMiddleware(AuthorizationMiddleware(mux))),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 20 * time.Second,
 	}
