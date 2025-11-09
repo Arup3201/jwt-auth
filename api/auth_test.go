@@ -128,9 +128,27 @@ func TestAuthorization(t *testing.T) {
 		// act
 		handler := http.HandlerFunc(getUserDetails)
 		authorizationMiddleware(handler).ServeHTTP(rec, req)
+		response = rec.Result()
 
 		// assert
 		assert.Equal(t, 200, response.StatusCode)
+
+		var user User
+		if err := json.NewDecoder(response.Body).Decode(&user); err != nil {
+			t.Fail()
+			t.Logf("login failed: JSON decode error: %s", err)
+			return
+		}
+
+		assert.Equal(t, username, user.Username)
+		assert.Equal(t, "Rakesh Chopra", user.FullName)
+		assert.Equal(t, "Alkapuri, R.C. Dutt Road", user.Address.Street)
+		assert.Equal(t, "Vadodara", user.Address.City)
+		assert.Equal(t, "Gujarat", user.Address.State)
+		assert.Equal(t, "390005", user.Address.PostCode)
+		assert.Equal(t, "TCS", user.Company)
+		assert.Equal(t, "IT Support Engineer", user.Designation)
+
 	})
 	t.Run("user can't access user details without access token", func(t *testing.T) {})
 	t.Run("access token verification failed with signature stripping", func(t *testing.T) {})

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -35,10 +36,21 @@ type Tokens struct {
 	AccessToken string `json:"access_token"`
 }
 
+type Address struct {
+	Street   string `json:"street"`
+	State    string `json:"state"`
+	City     string `json:"city"`
+	PostCode string `json:"post_code"`
+}
+
 type User struct {
 	Username string `json:"username"`
-	Password string `json:"password"`
+	Password string `json:"-"`
 	IsAdmin  bool   `json:"-"`
+	FullName string `json:"full_name"`
+	Address
+	Company     string `json:"company"`
+	Designation string `json:"designation"`
 }
 
 type JwtClaims struct {
@@ -67,6 +79,8 @@ func (j JwtClaims) Validate() error {
 type Config struct {
 	SecretKey string
 }
+
+type ContextKey string
 
 /* Utility functions */
 
@@ -121,23 +135,61 @@ var Users = []User{
 		Username: "admin01",
 		Password: "topsecret01",
 		IsAdmin:  true,
+		FullName: "Rakesh Chopra",
+		Address: Address{
+			Street:   "Alkapuri, R.C. Dutt Road",
+			City:     "Vadodara",
+			State:    "Gujarat",
+			PostCode: "390005",
+		},
+		Company:     "TCS",
+		Designation: "IT Support Engineer",
 	},
 	{
-		Username: "admin01",
+		Username: "admin02",
 		Password: "topsecret01",
 		IsAdmin:  true,
+		FullName: "Sunil Upadhay",
+		Address: Address{
+			Street:   "Cyber City, Building 5, DLF Cyber Hub, Sector 24",
+			City:     "Gurgaon",
+			State:    "Haryana",
+			PostCode: "122002",
+		},
+		Company:     "Wipro",
+		Designation: "Network Troubleshooter",
 	},
 	{
 		Username: "user01",
 		Password: "secret01",
 		IsAdmin:  false,
+		FullName: "Sunita Shetty",
+		Address: Address{
+			Street:   "Tonk Road, Durgapura, Near Airport",
+			City:     "Jaipur",
+			State:    "Rajasthan",
+			PostCode: "302015",
+		},
+		Company:     "TCS",
+		Designation: "IT Support Intern",
 	},
 	{
 		Username: "user02",
 		Password: "secret02",
 		IsAdmin:  false,
+		FullName: "Purbi Devi",
+		Address: Address{
+			Street:   "Gariahat Road, 46, Parveen Apartments, Zeeshan Chowk",
+			City:     "Kolkata",
+			State:    "West Bengal",
+			PostCode: "700029",
+		},
+		Company:     "TCS",
+		Designation: "IT Support Intern",
 	},
 }
+
+var authPayloadKey ContextKey = "authPayload"
 
 /* Middlewares */
 
@@ -175,10 +227,14 @@ func authorizationMiddleware(next http.Handler) http.Handler {
 				return
 			}
 
-			log.Printf("[INFO] JWT payload %v", payload)
-		} else {
-			next.ServeHTTP(w, r)
+			ctx, cancel := context.WithTimeout(r.Context(), time.Duration(60*time.Second))
+			defer cancel()
+
+			ctx = context.WithValue(ctx, authPayloadKey, payload)
+			r = r.WithContext(ctx)
 		}
+
+		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)
 }
@@ -247,7 +303,18 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func getUserDetails(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	payload := ctx.Value(authPayloadKey)
+	userPayload := *payload.(*User)
 
+	var userDetails User
+	for _, u := range Users {
+		if u.Username == userPayload.Username {
+			userDetails = u
+		}
+	}
+
+	json.NewEncoder(w).Encode(userDetails)
 }
 
 func logoutUser(w http.ResponseWriter, r *http.Request) {
