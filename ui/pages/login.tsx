@@ -2,46 +2,33 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router"
 import { useAuth } from "../hooks/useAuth";
 
-const validateEmail = (email: string) => {
-    return String(email)
-        .toLowerCase()
-        .match(
-            /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
-        );
-};
 
 const Login = () => {
-    const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const { login, user } = useAuth();
     const navigate = useNavigate();
 
-
     useEffect(() => {
         if (user) navigate('/dashboard');
     }, [user]);
-
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
-        if (email === "") {
-            setError("Missing email")
+        if (username === "") {
+            setError("Username is required")
             return
         }
         if (password === "") {
-            setError("Missing password")
-            return
-        }
-        if (!validateEmail(email)) {
-            setError("Invalid email address. Example: john@example.com")
+            setError("Password is required")
             return
         }
 
         try {
-            await login(email, password);
+            await login(username, password);
         } catch (err) {
             if (err instanceof Error) {
                 setError(err.message);
@@ -56,9 +43,9 @@ const Login = () => {
             <form onSubmit={handleSubmit} className="flex flex-col gap-2 w-64">
                 <input
                     className="border p-2 rounded"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                 />
                 <input
                     className="border p-2 rounded"
