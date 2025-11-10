@@ -62,7 +62,6 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       .then((res) => (res.ok ? res.json() : null))
       .then((userData) => {
         setUser(() => {
-          console.log(userData);
           if (userData.username != null) {
             return {
               username: userData["username"],
@@ -91,7 +90,6 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
     if (res.ok) {
       const token = await res.json();
-      console.log(token.access_token);
       localStorage.setItem(JWT_TOKEN, token.access_token);
       navigate("/dashboard");
     } else {
