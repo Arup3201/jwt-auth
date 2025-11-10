@@ -47,6 +47,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const token = localStorage.getItem(JWT_TOKEN);
     if (!token) {
+      setLoading(false);
       console.error("Authorization token missing");
       return;
     }
