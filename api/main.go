@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"time"
@@ -225,8 +227,13 @@ var endpoints = []Endpoint{
 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s", r.Method, r.URL.String())
-		next.ServeHTTP(w, r)
+		rec := httptest.NewRecorder()
+		next.ServeHTTP(rec, r)
+		log.Printf("\"%s %s %s\" %s", r.Method, r.URL.String(), r.Proto, rec.Result().Status)
+
+		maps.Copy(w.Header(), rec.Header())
+		w.WriteHeader(rec.Code)
+		w.Write(rec.Body.Bytes())
 	}
 	return http.HandlerFunc(fn)
 }
@@ -271,21 +278,29 @@ func AuthorizationMiddleware(next http.Handler) http.Handler {
 
 func CORSMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodOptions {
-			for _, e := range endpoints {
-				if strings.Contains(r.URL.Path, e.URLPath) {
+		for _, e := range endpoints {
+			if strings.Contains(r.URL.Path, e.URLPath) {
+				if r.Method == http.MethodOptions {
 					w.Header().Set("Access-Control-Allow-Origin", UI_HOST)
 					w.Header().Set("Access-Control-Allow-Methods", e.Method)
 					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 					w.Header().Set("Access-Control-Allow-Credentials", "true")
-					w.WriteHeader(http.StatusOK)
 					return
 				}
-			}
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
+				rec := httptest.NewRecorder()
+				next.ServeHTTP(rec, r)
 
-		next.ServeHTTP(w, r)
+				rec.Header().Set("Access-Control-Allow-Origin", UI_HOST)
+				rec.Header().Set("Access-Control-Allow-Methods", e.Method)
+				rec.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+				rec.Header().Set("Access-Control-Allow-Credentials", "true")
+				maps.Copy(w.Header(), rec.Header())
+				w.WriteHeader(rec.Code)
+				w.Write(rec.Body.Bytes())
+				return
+			}
+		}
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
 }
 
@@ -348,7 +363,6 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		AccessToken: jwt,
 	}
 
-	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tokens)
 }
 
