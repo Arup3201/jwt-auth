@@ -2,39 +2,67 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
-	"example.com/jwt-auth/interfaces"
-	"example.com/jwt-auth/models"
+	"example.com/go-jwt-auth/interfaces"
+	"example.com/go-jwt-auth/models"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 type authService struct {
+	db              *gorm.DB
+	hashCost        int
+	sessionDuration time.Duration
+	emailChecker    *regexp.Regexp
 }
 
 func NewAuthService(db *gorm.DB,
 	hCost int,
 	sessionDuration time.Duration) interfaces.AuthService {
 
-	return &authService{}
+	var emailRegex, _ = regexp.Compile(
+		`^[a-zA-Z0-9]+([._-][0-9a-zA-Z]+)*@[a-zA-Z0-9]+([.-][0-9a-zA-Z]+)*\.[a-zA-Z]{2,}$`,
+	)
+
+	return &authService{
+		db:              db,
+		hashCost:        hCost,
+		sessionDuration: sessionDuration,
+		emailChecker:    emailRegex,
+	}
 }
 
 func (as *authService) Register(ctx context.Context, email, fullName, password string) (uint, error) {
-	panic("TODO")
-}
+	var err error
 
-func (as *authService) Login(ctx context.Context, email, password string) error {
-	panic("TODO")
-}
+	if match := as.emailChecker.Find([]byte(email)); match == nil {
+		return 0, fmt.Errorf("email address is invalid")
+	}
 
-func (as *authService) ResetPassword(ctx context.Context, token, password string) error {
-	panic("TODO")
-}
+	if strings.Trim(fullName, " ") == "" {
+		return 0, fmt.Errorf("full name cannot be empty")
+	}
 
-func (as *authService) Logout(ctx context.Context, id string) error {
-	panic("TODO")
-}
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), as.hashCost)
+	if err != nil {
+		return 0, fmt.Errorf("bcrypt generate from password: %w", err)
+	}
 
-func (as *authService) GetUserFromSession(ctx context.Context, sessionId string) (models.User, error) {
-	panic("TODO")
+	user := models.User{
+		Email:         email,
+		FullName:      fullName,
+		Password:      string(hashedPassword),
+		EmailVerified: false,
+	}
+
+	err = gorm.G[models.User](as.db).Create(ctx, &user)
+	if err != nil {
+		return 0, fmt.Errorf("create user: %w", err)
+	}
+
+	return user.ID, nil
 }

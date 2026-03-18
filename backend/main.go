@@ -7,10 +7,9 @@ import (
 	"os"
 	"time"
 
-	"example.com/jwt-auth/controllers"
-	"example.com/jwt-auth/middlewares"
-	"example.com/jwt-auth/models"
-	"example.com/jwt-auth/services"
+	"example.com/go-jwt-auth/controllers"
+	"example.com/go-jwt-auth/models"
+	"example.com/go-jwt-auth/services"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -49,14 +48,6 @@ func NewApp(db *gorm.DB,
 	mux.HandleFunc("POST /api/register", authController.Register)
 	mux.HandleFunc("GET /api/verify-email", authController.VerifyEmail)
 	mux.HandleFunc("GET /api/email-verified", authController.EmailVerificationStatus)
-	mux.HandleFunc("POST /api/login", authController.Login)
-	mux.HandleFunc("POST /api/password-reset-link", authController.PasswordResetEmail)
-	mux.HandleFunc("POST /api/reset-password", authController.ResetPassword)
-
-	authMiddleware := middlewares.NewAuthMiddleware(authService)
-	mux.Handle("POST /api/logout", authMiddleware.Next(http.HandlerFunc(authController.Logout)))
-	mux.Handle("GET /api/message", authMiddleware.Next(http.HandlerFunc(authController.Welcome)))
-	mux.Handle("GET /api/user-info", authMiddleware.Next(http.HandlerFunc(authController.UserInfo)))
 
 	return &App{
 		mux: mux,

@@ -3,7 +3,7 @@ package middlewares
 import (
 	"net/http"
 
-	"example.com/jwt-auth/interfaces"
+	"example.com/go-jwt-auth/interfaces"
 )
 
 type authMiddleware struct{}
