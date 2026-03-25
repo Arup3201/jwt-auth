@@ -45,6 +45,32 @@ func NewClaims(iss, sub, userId string, exp time.Time) *JWTClaims {
 	}
 }
 
+func ClaimsFromToken(tokenString, key string) (*JWTClaims, error) {
+
+	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (any, error) {
+		return []byte(key), nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("jwt parse with claims: %w", err)
+	}
+
+	claims, ok := token.Claims.(*CustomClaims)
+	if !ok {
+		return nil, fmt.Errorf("token claims is not of type CustomClaims")
+	}
+
+	jwtClaims := JWTClaims{
+		Issuer:    claims.Issuer,
+		Subject:   claims.Subject,
+		UserId:    claims.UserId,
+		IssuedAt:  claims.IssuedAt.Time,
+		NotBefore: claims.NotBefore.Time,
+		Expiry:    claims.ExpiresAt.Time,
+	}
+
+	return &jwtClaims, nil
+}
+
 type CustomClaims struct {
 	UserId string `json:"user_id"`
 	jwt.RegisteredClaims
