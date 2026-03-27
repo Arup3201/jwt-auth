@@ -9,4 +9,6 @@ type AuthController interface {
 	Login(w http.ResponseWriter, r *http.Request)
 	PasswordResetEmail(w http.ResponseWriter, r *http.Request)
 	ResetPassword(w http.ResponseWriter, r *http.Request)
+	UserInfo(w http.ResponseWriter, r *http.Request)
+	Welcome(w http.ResponseWriter, r *http.Request)
 }

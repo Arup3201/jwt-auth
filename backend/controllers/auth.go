@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"example.com/go-jwt-auth/interfaces"
+	"example.com/go-jwt-auth/utils"
 )
 
 type authController struct {
@@ -228,4 +229,33 @@ func (ac *authController) ResetPassword(w http.ResponseWriter, r *http.Request) 
 		"message": "Password reset successful",
 	}
 	json.NewEncoder(w).Encode(responseBody)
+}
+
+func (ac *authController) UserInfo(w http.ResponseWriter, r *http.Request) {
+
+	user, ok := utils.FromContext(r.Context())
+	if !ok {
+		http.Error(w, "Error extracting user data", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"id":         user.ID,
+		"full_name":  user.FullName,
+		"email":      user.Email,
+		"created_at": user.CreatedAt,
+	})
+}
+
+func (ac *authController) Welcome(w http.ResponseWriter, r *http.Request) {
+
+	_, ok := utils.FromContext(r.Context())
+	if !ok {
+		http.Error(w, "Error extracting user data", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Welcome to the site",
+	})
 }

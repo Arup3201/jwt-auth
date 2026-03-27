@@ -3,8 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +10,7 @@ import (
 	"time"
 
 	"example.com/go-jwt-auth/controllers"
+	"example.com/go-jwt-auth/middlewares"
 	"example.com/go-jwt-auth/models"
 	"example.com/go-jwt-auth/services"
 	"gorm.io/driver/sqlite"
@@ -32,17 +31,13 @@ func CorsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-type RSAKeys struct {
-	private, public []byte
-}
-
 type App struct {
 	mux *http.ServeMux
 }
 
 func NewApp(db *gorm.DB,
 	hashCost int,
-	rsaKeys RSAKeys,
+	rsaKey *rsa.PrivateKey,
 	sessionDurationInSec int,
 	resendApiKey string) *App {
 
@@ -51,7 +46,7 @@ func NewApp(db *gorm.DB,
 	emailService := services.NewEmailService(db, resendApiKey)
 	authService := services.NewAuthService(db,
 		hashCost,
-		string(rsaKeys.private),
+		rsaKey,
 		time.Duration(sessionDurationInSec)*time.Second)
 	authController := controllers.NewAuthController(authService, emailService)
 
@@ -61,6 +56,10 @@ func NewApp(db *gorm.DB,
 	mux.HandleFunc("POST /api/login", authController.Login)
 	mux.HandleFunc("POST /api/password-reset-link", authController.PasswordResetEmail)
 	mux.HandleFunc("POST /api/reset-password", authController.ResetPassword)
+
+	authMiddleware := middlewares.NewAuthMiddleware(authService, &rsaKey.PublicKey)
+	mux.Handle("GET /api/message", authMiddleware.Next(http.HandlerFunc(authController.Welcome)))
+	mux.Handle("GET /api/user-info", authMiddleware.Next(http.HandlerFunc(authController.UserInfo)))
 
 	return &App{
 		mux: mux,
@@ -85,27 +84,6 @@ func (a *App) Start(host, port string) error {
 	return nil
 }
 
-func GenerateAndSaveKeys() (RSAKeys, error) {
-	var keys RSAKeys
-
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return keys, err
-	}
-	keys.private = pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(priv),
-	})
-
-	pubBytes, _ := x509.MarshalPKIXPublicKey(&priv.PublicKey)
-	keys.public = pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: pubBytes,
-	})
-
-	return keys, nil
-}
-
 func main() {
 	var err error
 	var db *gorm.DB
@@ -126,13 +104,12 @@ func main() {
 		log.Fatal("Missing RESEND_API_KEY\n")
 	}
 
-	var keys RSAKeys
-	keys, err = GenerateAndSaveKeys()
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		log.Fatalf("generate and save RSA keys: %s\n", err)
+		log.Fatalf("rsa generate key: %s\n", err)
 	}
 
-	app := NewApp(db, 14, keys, 10, RESEND_API_KEY)
+	app := NewApp(db, 14, priv, 10, RESEND_API_KEY)
 
 	err = app.Start("localhost", "8080")
 	if err != nil {

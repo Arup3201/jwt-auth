@@ -3,6 +3,8 @@ package interfaces
 import (
 	"context"
 	"time"
+
+	"example.com/go-jwt-auth/models"
 )
 
 type Token struct {
@@ -14,6 +16,7 @@ type AuthService interface {
 	Register(ctx context.Context, email, fullName, password string) (uint, error)
 	Login(ctx context.Context, email, password string) (*Token, error)
 	ResetPassword(ctx context.Context, token, password string) error
+	GetUser(ctx context.Context, userId string) (models.User, error)
 }
 
 type EmailService interface {

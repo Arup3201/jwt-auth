@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"strconv"
 	"testing"
 	"time"
@@ -40,12 +42,13 @@ func TestAuthService_Login(t *testing.T) {
 		Password:      string(hash),
 		EmailVerified: true,
 	}
-	privateKey := "private_scret_key"
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	assert.NoError(t, err)
 
 	err = gorm.G[models.User](db).Create(ctx, &testUser)
 	assert.NoError(t, err)
 
-	authService := NewAuthService(db, TEST_HASH_COST, privateKey, TEST_SESSION_DURATION)
+	authService := NewAuthService(db, TEST_HASH_COST, priv, TEST_SESSION_DURATION)
 
 	t.Run("should login with not empty token", func(t *testing.T) {
 		tokenObj, err := authService.Login(ctx, testUser.Email, "vaew2Iehexi")
@@ -56,7 +59,7 @@ func TestAuthService_Login(t *testing.T) {
 		tokenObj, _ := authService.Login(ctx, testUser.Email, "vaew2Iehexi")
 
 		token, err := jwt.ParseWithClaims(tokenObj.Value, &utils.CustomClaims{}, func(t *jwt.Token) (any, error) {
-			return []byte(privateKey), nil
+			return &priv.PublicKey, nil
 		})
 		if !assert.NoError(t, err) {
 			return

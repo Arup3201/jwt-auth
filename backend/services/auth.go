@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"crypto/rsa"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -21,13 +22,13 @@ type authService struct {
 	db              *gorm.DB
 	hashCost        int
 	sessionDuration time.Duration
-	privateKey      string
+	privateKey      *rsa.PrivateKey
 	emailChecker    *regexp.Regexp
 }
 
 func NewAuthService(db *gorm.DB,
 	hCost int,
-	privateKey string,
+	privateKey *rsa.PrivateKey,
 	sessionDuration time.Duration) interfaces.AuthService {
 
 	var emailRegex, _ = regexp.Compile(
@@ -164,4 +165,19 @@ func (as *authService) ResetPassword(ctx context.Context, token, password string
 	}
 
 	return nil
+}
+
+func (as *authService) GetUser(ctx context.Context, userId string) (models.User, error) {
+
+	var err error
+	var user models.User
+
+	user, err = gorm.G[models.User](as.db).
+		Where("id = ?", userId).
+		First(ctx)
+	if err != nil {
+		return user, fmt.Errorf("gorm user where clause: %w", err)
+	}
+
+	return user, nil
 }
