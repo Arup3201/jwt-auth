@@ -8,6 +8,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/http"
+	"slices"
 	"time"
 
 	"example.com/go-jwt-auth/models"
@@ -45,10 +47,10 @@ func NewClaims(iss, sub, userId string, exp time.Time) *JWTClaims {
 	}
 }
 
-func ClaimsFromToken(tokenString, key string) (*JWTClaims, error) {
+func ClaimsFromToken(tokenString string, key any) (*JWTClaims, error) {
 
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (any, error) {
-		return []byte(key), nil
+		return key, nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("jwt parse with claims: %w", err)
@@ -104,7 +106,7 @@ func JWTFromClaims(claims *JWTClaims,
 	return &obj, nil
 }
 
-func (t *JWT) Sign(key string) (string, error) {
+func (t *JWT) Sign(key any) (string, error) {
 
 	claims := CustomClaims{
 		UserId: t.Claims.UserId,
@@ -116,13 +118,29 @@ func (t *JWT) Sign(key string) (string, error) {
 			Subject:   t.Claims.Subject,
 		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signed, err := token.SignedString([]byte(key))
+	token := jwt.NewWithClaims(t.Alg, claims)
+	signed, err := token.SignedString(key)
 	if err != nil {
 		return "", fmt.Errorf("jwt sign: %w", err)
 	}
 
 	return signed, nil
+}
+
+func GetToken(cookies []*http.Cookie) (string, error) {
+	tInd := slices.IndexFunc(cookies, func(c *http.Cookie) bool {
+		return c.Name == "AUTH_DATA"
+	})
+	if tInd == -1 {
+		return "", fmt.Errorf("token cookie not found")
+	}
+
+	token := cookies[tInd].Value
+	if token == "" {
+		return "", fmt.Errorf("token value is empty")
+	}
+
+	return token, nil
 }
 
 // NewContext returns a new Context that carries value u.

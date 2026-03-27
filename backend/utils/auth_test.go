@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"testing"
 	"time"
 
@@ -35,14 +37,40 @@ func TestJWTFromClaims(t *testing.T) {
 	exp = time.Now().Add(10 * time.Second)
 	claims := NewClaims(iss, sub, uId, exp)
 
-	jwt, err := JWTFromClaims(claims, JWT_ALG_RSA)
+	jwt, err := JWTFromClaims(claims, JWT_ALG_HMAC)
 
 	assert.NoError(t, err)
-	assert.Equal(t, jwtv5.SigningMethodRS256, jwt.Alg)
+	assert.Equal(t, jwtv5.SigningMethodHS256, jwt.Alg)
 	assert.Equal(t, "https://auth.go.com", jwt.Claims.Issuer)
 }
 
-func TestJWTSign(t *testing.T) {
+func TestJWTSign_HMAC(t *testing.T) {
+	var iss, sub, uId string
+	var exp time.Time
+	iss = "https://auth.go.com"
+	sub = "sample_sub"
+	uId = "123"
+	exp = time.Now().Add(10 * time.Second)
+	claims := NewClaims(iss, sub, uId, exp)
+	jwt, _ := JWTFromClaims(claims, JWT_ALG_HMAC)
+	secret := "secret"
+
+	tokenStr, err := jwt.Sign([]byte(secret))
+
+	assert.NoError(t, err)
+
+	token, err := jwtv5.ParseWithClaims(tokenStr, &CustomClaims{}, func(token *jwtv5.Token) (any, error) {
+		return []byte(secret), nil
+	})
+	assert.NoError(t, err)
+	if claims, ok := token.Claims.(*CustomClaims); ok {
+		assert.Equal(t, uId, claims.UserId)
+		assert.Equal(t, sub, claims.Subject)
+		assert.Equal(t, iss, claims.Issuer)
+	}
+}
+
+func TestJWTSign_RSA(t *testing.T) {
 	var iss, sub, uId string
 	var exp time.Time
 	iss = "https://auth.go.com"
@@ -51,14 +79,15 @@ func TestJWTSign(t *testing.T) {
 	exp = time.Now().Add(10 * time.Second)
 	claims := NewClaims(iss, sub, uId, exp)
 	jwt, _ := JWTFromClaims(claims, JWT_ALG_RSA)
-	secret := "secret"
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	assert.NoError(t, err)
 
-	tokenStr, err := jwt.Sign(secret)
+	tokenStr, err := jwt.Sign(priv)
 
 	assert.NoError(t, err)
 
 	token, err := jwtv5.ParseWithClaims(tokenStr, &CustomClaims{}, func(token *jwtv5.Token) (any, error) {
-		return []byte(secret), nil
+		return &priv.PublicKey, nil
 	})
 	assert.NoError(t, err)
 	if claims, ok := token.Claims.(*CustomClaims); ok {
@@ -89,7 +118,7 @@ func TestClaimsFromToken(t *testing.T) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, _ := token.SignedString([]byte(key))
 
-	jwtClaims, err := ClaimsFromToken(signed, key)
+	jwtClaims, err := ClaimsFromToken(signed, []byte(key))
 
 	assert.NoError(t, err)
 	assert.Equal(t, iss, jwtClaims.Issuer)
