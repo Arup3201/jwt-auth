@@ -4,24 +4,30 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"example.com/go-jwt-auth/interfaces"
 	"example.com/go-jwt-auth/models"
+	"example.com/go-jwt-auth/utils"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+const ISSUER = "https://auth.jwt.com"
 
 type authService struct {
 	db              *gorm.DB
 	hashCost        int
 	sessionDuration time.Duration
+	privateKey      string
 	emailChecker    *regexp.Regexp
 }
 
 func NewAuthService(db *gorm.DB,
 	hCost int,
+	privateKey string,
 	sessionDuration time.Duration) interfaces.AuthService {
 
 	var emailRegex, _ = regexp.Compile(
@@ -33,10 +39,12 @@ func NewAuthService(db *gorm.DB,
 		hashCost:        hCost,
 		sessionDuration: sessionDuration,
 		emailChecker:    emailRegex,
+		privateKey:      privateKey,
 	}
 }
 
-func (as *authService) Register(ctx context.Context, email, fullName, password string) (uint, error) {
+func (as *authService) Register(ctx context.Context,
+	email, fullName, password string) (uint, error) {
 	var err error
 
 	if match := as.emailChecker.Find([]byte(email)); match == nil {
@@ -65,4 +73,50 @@ func (as *authService) Register(ctx context.Context, email, fullName, password s
 	}
 
 	return user.ID, nil
+}
+
+func (as *authService) Login(ctx context.Context,
+	email, password string) (*interfaces.Token, error) {
+
+	user, err := gorm.G[models.User](as.db).Where("email = ?", email).First(ctx)
+	if err != nil {
+		switch err {
+		case gorm.ErrRecordNotFound:
+			return nil, fmt.Errorf("email not found")
+		default:
+			return nil, fmt.Errorf("sql where first: %w", err)
+		}
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		return nil, fmt.Errorf("password mismatch")
+	}
+
+	if !user.EmailVerified {
+		return nil, fmt.Errorf("email verification pending")
+	}
+
+	var issuer, subject, userId string
+	var expiry time.Time
+
+	issuer = ISSUER
+	userId = strconv.Itoa(int(user.ID))
+	subject = userId
+	expiry = time.Now().Add(as.sessionDuration)
+	claims := utils.NewClaims(issuer, subject, userId, expiry)
+
+	jwt, err := utils.JWTFromClaims(claims, utils.JWT_ALG_RSA)
+	if err != nil {
+		return nil, fmt.Errorf("utils jwt from claims: %w", err)
+	}
+
+	token, err := jwt.Sign(as.privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("jwt sign: %w", err)
+	}
+
+	return &interfaces.Token{
+		Value:     token,
+		ExpiresAt: expiry,
+	}, nil
 }

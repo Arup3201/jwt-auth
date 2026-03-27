@@ -119,3 +119,48 @@ func (ac *authController) EmailVerificationStatus(w http.ResponseWriter, r *http
 	}
 	json.NewEncoder(w).Encode(responseBody)
 }
+
+func (ac *authController) Login(w http.ResponseWriter, r *http.Request) {
+
+	type loginData struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	var data loginData
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		log.Printf("[ERROR] json decode payload: %s\n", err)
+
+		http.Error(w,
+			"Error while parsing payload. Payload accepts email and password",
+			http.StatusBadRequest)
+		return
+	}
+
+	token, err := ac.authService.Login(r.Context(), data.Email, data.Password)
+	if err != nil {
+		log.Printf("[ERROR] auth service login: %s\n", err)
+
+		http.Error(w,
+			"Encountered error while logging in. Please try again with correct credentials.",
+			http.StatusInternalServerError)
+		return
+	}
+
+	cookie := &http.Cookie{
+		Name:     "AUTH_DATA",
+		Value:    token.Value,
+		Expires:  token.ExpiresAt,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+
+	http.SetCookie(w, cookie)
+
+	responseBody := map[string]any{
+		"message": "Logged in successfully",
+	}
+	json.NewEncoder(w).Encode(responseBody)
+}

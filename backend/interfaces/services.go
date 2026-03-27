@@ -2,10 +2,17 @@ package interfaces
 
 import (
 	"context"
+	"time"
 )
+
+type Token struct {
+	Value     string
+	ExpiresAt time.Time
+}
 
 type AuthService interface {
 	Register(ctx context.Context, email, fullName, password string) (uint, error)
+	Login(ctx context.Context, email, password string) (*Token, error)
 }
 
 type EmailService interface {
