@@ -13,6 +13,7 @@ type Token struct {
 type AuthService interface {
 	Register(ctx context.Context, email, fullName, password string) (uint, error)
 	Login(ctx context.Context, email, password string) (*Token, error)
+	ResetPassword(ctx context.Context, token, password string) error
 }
 
 type EmailService interface {

@@ -164,3 +164,68 @@ func (ac *authController) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewEncoder(w).Encode(responseBody)
 }
+
+func (ac *authController) PasswordResetEmail(w http.ResponseWriter, r *http.Request) {
+
+	type forgotPasswordReq struct {
+		Email string `json:"email"`
+	}
+
+	var data forgotPasswordReq
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		log.Printf("[ERROR] json decode payload: %s\n", err)
+
+		http.Error(w,
+			"Error while parsing payload. Payload accepts only email",
+			http.StatusBadRequest)
+		return
+	}
+
+	err := ac.emailService.SendPasswordResetEmail(r.Context(), data.Email)
+	if err != nil {
+		log.Printf("[ERROR] auth service login: %s\n", err)
+
+		http.Error(w,
+			"Encountered error while sending password reset email. Please try again with valid email.",
+			http.StatusInternalServerError)
+		return
+	}
+
+	responseBody := map[string]any{
+		"message": "Reset password email has been sent to the email address",
+	}
+	json.NewEncoder(w).Encode(responseBody)
+}
+
+func (ac *authController) ResetPassword(w http.ResponseWriter, r *http.Request) {
+
+	type resetPasswordReq struct {
+		Token    string `json:"token"`
+		Password string `json:"password"`
+	}
+
+	var data resetPasswordReq
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		log.Printf("[ERROR] json decode payload: %s\n", err)
+
+		http.Error(w,
+			"Error while parsing payload. Payload accepts token and password",
+			http.StatusBadRequest)
+		return
+	}
+
+	err := ac.authService.ResetPassword(r.Context(), data.Token, data.Password)
+	if err != nil {
+		log.Printf("[ERROR] auth service reset password: %s\n", err)
+
+		http.Error(w,
+			"Encountered error while resetting password.",
+			http.StatusInternalServerError)
+		return
+	}
+
+	responseBody := map[string]any{
+		"message": "Password reset successful",
+	}
+	json.NewEncoder(w).Encode(responseBody)
+}

@@ -120,3 +120,48 @@ func (as *authService) Login(ctx context.Context,
 		ExpiresAt: expiry,
 	}, nil
 }
+
+func (as *authService) ResetPassword(ctx context.Context, token, password string) error {
+
+	tokenSHA := utils.HashToken(token)
+	now := time.Now().UTC()
+
+	err := as.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		rt, err := gorm.G[models.PasswordResetToken](tx).
+			Where("hashed_token = ? AND used_at IS NULL AND expires_at >= ?",
+				tokenSHA, now).
+			First(ctx)
+		if err != nil {
+			return fmt.Errorf("find password reset token with token hash: %w", err)
+		}
+
+		rt.UsedAt = &now
+		if err := tx.Save(&rt).Error; err != nil {
+			return fmt.Errorf("mark password reset token as used: %w", err)
+		}
+
+		user, err := gorm.G[models.User](tx).Where("id = ?", rt.UserId).First(ctx)
+		if err != nil {
+			return fmt.Errorf("find user with id: %w", err)
+		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), as.hashCost)
+		if err != nil {
+			return fmt.Errorf("bcrypt generate from password: %w", err)
+		}
+
+		user.Password = string(hashedPassword)
+		if err := tx.Save(&user).Error; err != nil {
+			return fmt.Errorf("user password update: %w", err)
+		}
+
+		// TODO: Logout from active sessions
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("gorm transaction: %w", err)
+	}
+
+	return nil
+}

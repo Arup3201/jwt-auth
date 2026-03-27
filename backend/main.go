@@ -59,6 +59,8 @@ func NewApp(db *gorm.DB,
 	mux.HandleFunc("GET /api/verify-email", authController.VerifyEmail)
 	mux.HandleFunc("GET /api/email-verified", authController.EmailVerificationStatus)
 	mux.HandleFunc("POST /api/login", authController.Login)
+	mux.HandleFunc("POST /api/password-reset-link", authController.PasswordResetEmail)
+	mux.HandleFunc("POST /api/reset-password", authController.ResetPassword)
 
 	return &App{
 		mux: mux,
