@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"example.com/go-jwt-auth/constants"
 	"github.com/golang-jwt/jwt/v5"
 	jwtv5 "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -37,7 +38,7 @@ func TestJWTFromClaims(t *testing.T) {
 	exp = time.Now().Add(10 * time.Second)
 	claims := NewClaims(iss, sub, uId, exp)
 
-	jwt, err := JWTFromClaims(claims, JWT_ALG_HMAC)
+	jwt, err := JWTFromClaims(claims, constants.JWT_ALG_HMAC)
 
 	assert.NoError(t, err)
 	assert.Equal(t, jwtv5.SigningMethodHS256, jwt.Alg)
@@ -52,7 +53,7 @@ func TestJWTSign_HMAC(t *testing.T) {
 	uId = "123"
 	exp = time.Now().Add(10 * time.Second)
 	claims := NewClaims(iss, sub, uId, exp)
-	jwt, _ := JWTFromClaims(claims, JWT_ALG_HMAC)
+	jwt, _ := JWTFromClaims(claims, constants.JWT_ALG_HMAC)
 	secret := "secret"
 
 	tokenStr, err := jwt.Sign([]byte(secret))
@@ -78,7 +79,7 @@ func TestJWTSign_RSA(t *testing.T) {
 	uId = "123"
 	exp = time.Now().Add(10 * time.Second)
 	claims := NewClaims(iss, sub, uId, exp)
-	jwt, _ := JWTFromClaims(claims, JWT_ALG_RSA)
+	jwt, _ := JWTFromClaims(claims, constants.JWT_ALG_RSA)
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	assert.NoError(t, err)
 

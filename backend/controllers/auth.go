@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"example.com/go-jwt-auth/constants"
 	"example.com/go-jwt-auth/interfaces"
 	"example.com/go-jwt-auth/utils"
 )
@@ -149,7 +150,7 @@ func (ac *authController) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	accessTokenCookie := &http.Cookie{
-		Name:     "ACCESS_TOKEN",
+		Name:     constants.ACCESS_TOKEN_NAME,
 		Value:    token.AccessToken,
 		Expires:  token.AccessTokenExpiresAt,
 		Path:     "/",
@@ -160,10 +161,10 @@ func (ac *authController) Login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, accessTokenCookie)
 
 	refreshTokenCookie := &http.Cookie{
-		Name:     "REFRESH_TOKEN",
+		Name:     constants.REFRESH_TOKEN_NAME,
 		Value:    token.RefreshToken,
 		Expires:  token.RefreshTokenExpiresAt,
-		Path:     "/api/auth/refresh",
+		Path:     constants.API_PATH + "/auth/refresh",
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,

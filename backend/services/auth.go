@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"example.com/go-jwt-auth/constants"
 	"example.com/go-jwt-auth/interfaces"
 	"example.com/go-jwt-auth/models"
 	"example.com/go-jwt-auth/utils"
@@ -111,7 +112,7 @@ func (as *authService) Login(ctx context.Context,
 
 	accessExpiry = time.Now().Add(as.sessionDuration)
 	accessClaims := utils.NewClaims(issuer, subject, userId, accessExpiry)
-	jwt, err = utils.JWTFromClaims(accessClaims, utils.JWT_ALG_RSA)
+	jwt, err = utils.JWTFromClaims(accessClaims, constants.JWT_ALG_RSA)
 	if err != nil {
 		return nil, fmt.Errorf("utils jwt from claims: %w", err)
 	}
@@ -123,7 +124,7 @@ func (as *authService) Login(ctx context.Context,
 
 	refreshExpiry = time.Now().Add(as.refreshDuration)
 	refreshClaims := utils.NewClaims(issuer, subject, userId, refreshExpiry)
-	jwt, err = utils.JWTFromClaims(refreshClaims, utils.JWT_ALG_RSA)
+	jwt, err = utils.JWTFromClaims(refreshClaims, constants.JWT_ALG_RSA)
 	if err != nil {
 		return nil, fmt.Errorf("utils jwt from claims: %w", err)
 	}

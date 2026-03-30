@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"example.com/go-jwt-auth/constants"
 	"example.com/go-jwt-auth/interfaces"
 	"example.com/go-jwt-auth/utils"
 )
@@ -27,7 +28,7 @@ func NewAuthMiddleware(authService interfaces.AuthService,
 
 func (m *authMiddleware) Next(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := utils.GetToken(r.Cookies())
+		token, err := utils.GetToken(constants.ACCESS_TOKEN_NAME, r.Cookies())
 		if err != nil {
 			log.Printf("[ERROR] get token: %s\n", err)
 

@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"example.com/go-jwt-auth/constants"
 	"example.com/go-jwt-auth/controllers"
 	"example.com/go-jwt-auth/middlewares"
 	"example.com/go-jwt-auth/models"
@@ -52,16 +53,16 @@ func NewApp(db *gorm.DB,
 		time.Duration(refreshDurationInHours)*time.Hour)
 	authController := controllers.NewAuthController(authService, emailService)
 
-	mux.HandleFunc("POST /api/register", authController.Register)
-	mux.HandleFunc("GET /api/verify-email", authController.VerifyEmail)
-	mux.HandleFunc("GET /api/email-verified", authController.EmailVerificationStatus)
-	mux.HandleFunc("POST /api/login", authController.Login)
-	mux.HandleFunc("POST /api/password-reset-link", authController.PasswordResetEmail)
-	mux.HandleFunc("POST /api/reset-password", authController.ResetPassword)
+	mux.HandleFunc(fmt.Sprintf("POST /%s/register", constants.API_PATH), authController.Register)
+	mux.HandleFunc(fmt.Sprintf("GET /%s/verify-email", constants.API_PATH), authController.VerifyEmail)
+	mux.HandleFunc(fmt.Sprintf("GET /%s/email-verified", constants.API_PATH), authController.EmailVerificationStatus)
+	mux.HandleFunc(fmt.Sprintf("POST /%s/login", constants.API_PATH), authController.Login)
+	mux.HandleFunc(fmt.Sprintf("POST /%s/password-reset-link", constants.API_PATH), authController.PasswordResetEmail)
+	mux.HandleFunc(fmt.Sprintf("POST /%s/reset-password", constants.API_PATH), authController.ResetPassword)
 
 	authMiddleware := middlewares.NewAuthMiddleware(authService, &rsaKey.PublicKey)
-	mux.Handle("GET /api/message", authMiddleware.Next(http.HandlerFunc(authController.Welcome)))
-	mux.Handle("GET /api/user-info", authMiddleware.Next(http.HandlerFunc(authController.UserInfo)))
+	mux.Handle(fmt.Sprintf("GET /%s/message", constants.API_PATH), authMiddleware.Next(http.HandlerFunc(authController.Welcome)))
+	mux.Handle(fmt.Sprintf("GET /%s/user-info", constants.API_PATH), authMiddleware.Next(http.HandlerFunc(authController.UserInfo)))
 
 	return &App{
 		mux: mux,
@@ -98,6 +99,7 @@ func main() {
 	}
 
 	db.AutoMigrate(&models.User{})
+	db.AutoMigrate(&models.RefreshToken{})
 	db.AutoMigrate(&models.EmailVerification{})
 	db.AutoMigrate(&models.PasswordResetToken{})
 

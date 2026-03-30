@@ -12,18 +12,10 @@ import (
 	"slices"
 	"time"
 
+	"example.com/go-jwt-auth/constants"
 	"example.com/go-jwt-auth/models"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-)
-
-const (
-	USER_KEY = "USER"
-
-	JWT_ALG_ECDSA   = "ECDSA"
-	JWT_ALG_ED25519 = "ED25519"
-	JWT_ALG_HMAC    = "HMAC"
-	JWT_ALG_RSA     = "RSA"
 )
 
 type JWTClaims struct {
@@ -95,13 +87,13 @@ func JWTFromClaims(claims *JWTClaims,
 	}
 
 	switch alg {
-	case JWT_ALG_ECDSA:
+	case constants.JWT_ALG_ECDSA:
 		obj.Alg = jwt.SigningMethodES256
-	case JWT_ALG_ED25519:
+	case constants.JWT_ALG_ED25519:
 		obj.Alg = jwt.SigningMethodEdDSA
-	case JWT_ALG_HMAC:
+	case constants.JWT_ALG_HMAC:
 		obj.Alg = jwt.SigningMethodHS256
-	case JWT_ALG_RSA:
+	case constants.JWT_ALG_RSA:
 		obj.Alg = jwt.SigningMethodRS256
 	default:
 		return nil, errors.New("invalid jwt algorithm")
@@ -131,9 +123,9 @@ func (t *JWT) Sign(key any) (string, error) {
 	return signed, nil
 }
 
-func GetToken(cookies []*http.Cookie) (string, error) {
+func GetToken(name string, cookies []*http.Cookie) (string, error) {
 	tInd := slices.IndexFunc(cookies, func(c *http.Cookie) bool {
-		return c.Name == "AUTH_DATA"
+		return c.Name == name
 	})
 	if tInd == -1 {
 		return "", fmt.Errorf("token cookie not found")
@@ -149,12 +141,12 @@ func GetToken(cookies []*http.Cookie) (string, error) {
 
 // NewContext returns a new Context that carries value u.
 func NewContext(ctx context.Context, u models.User) context.Context {
-	return context.WithValue(ctx, USER_KEY, u)
+	return context.WithValue(ctx, constants.USER_KEY, u)
 }
 
 // FromContext returns the User value stored in ctx, if any.
 func FromContext(ctx context.Context) (models.User, bool) {
-	u, ok := ctx.Value(USER_KEY).(models.User)
+	u, ok := ctx.Value(constants.USER_KEY).(models.User)
 	return u, ok
 }
 
