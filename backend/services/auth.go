@@ -154,6 +154,91 @@ func (as *authService) Login(ctx context.Context,
 	}, nil
 }
 
+func (as *authService) Refresh(ctx context.Context,
+	token string) (*interfaces.Tokens, error) {
+
+	var err error
+	var claims *utils.JWTClaims
+	var dbToken models.RefreshToken
+
+	claims, err = utils.ClaimsFromToken(token, as.privateKey.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("utils claims from token: %w", err)
+	}
+
+	dbToken, err = gorm.G[models.RefreshToken](as.db).Where("jti = ?",
+		claims.Jti, false).First(ctx)
+
+	if dbToken.Revoked {
+		return nil, fmt.Errorf("token has been revoked")
+	}
+
+	var issuer, subject, userId string
+	var accessToken, refreshToken string
+	var accessExpiry, refreshExpiry time.Time
+	var jwt *utils.JWT
+
+	issuer = ISSUER
+	subject = userId
+
+	accessExpiry = time.Now().Add(as.sessionDuration)
+	accessClaims := utils.NewClaims(issuer, subject, claims.UserId, accessExpiry)
+	jwt, err = utils.JWTFromClaims(accessClaims, constants.JWT_ALG_RSA)
+	if err != nil {
+		return nil, fmt.Errorf("utils jwt from claims: %w", err)
+	}
+
+	accessToken, err = jwt.Sign(as.privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("jwt sign: %w", err)
+	}
+
+	refreshExpiry = time.Now().Add(as.refreshDuration)
+	refreshClaims := utils.NewClaims(issuer, subject, claims.UserId, refreshExpiry)
+	jwt, err = utils.JWTFromClaims(refreshClaims, constants.JWT_ALG_RSA)
+	if err != nil {
+		return nil, fmt.Errorf("utils jwt from claims: %w", err)
+	}
+
+	err = as.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+
+		dbToken.Revoked = true
+		if err := tx.Save(&dbToken).Error; err != nil {
+			return fmt.Errorf("revoke refresh token: %w", err)
+		}
+
+		userIdInt, _ := strconv.Atoi(claims.UserId)
+		dbToken = models.RefreshToken{
+			Jti:       refreshClaims.Jti,
+			UserId:    uint(userIdInt),
+			Revoked:   false,
+			CreatedAt: refreshClaims.IssuedAt,
+			UpdatedAt: refreshClaims.IssuedAt,
+		}
+		err = gorm.G[models.RefreshToken](as.db).Create(ctx, &dbToken)
+		if err != nil {
+			return fmt.Errorf("refresh token create: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("token refresh transaction: %w", err)
+	}
+
+	refreshToken, err = jwt.Sign(as.privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("jwt sign: %w", err)
+	}
+
+	return &interfaces.Tokens{
+		AccessToken:           accessToken,
+		AccessTokenExpiresAt:  accessExpiry,
+		RefreshToken:          refreshToken,
+		RefreshTokenExpiresAt: refreshExpiry,
+	}, nil
+}
+
 func (as *authService) ResetPassword(ctx context.Context, token, password string) error {
 
 	tokenSHA := utils.HashToken(token)
@@ -188,13 +273,51 @@ func (as *authService) ResetPassword(ctx context.Context, token, password string
 			return fmt.Errorf("user password update: %w", err)
 		}
 
-		// TODO: Logout from active sessions
+		// revoke active refresh tokens
+
+		var tokens []models.RefreshToken
+		tokens, err = gorm.G[models.RefreshToken](as.db).Where("user_id = ? AND revoked = ?",
+			user.ID, false).Find(ctx)
+		if err := tx.Save(&user).Error; err != nil {
+			return fmt.Errorf("get active refresh tokens: %w", err)
+		}
+
+		for _, t := range tokens {
+			t.Revoked = true
+			if err := tx.Save(&t).Error; err != nil {
+				return fmt.Errorf("revoke refresh token: %w", err)
+			}
+		}
 
 		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("gorm transaction: %w", err)
 	}
+
+	return nil
+}
+
+func (as *authService) Logout(ctx context.Context, token string) error {
+
+	var err error
+	var claims *utils.JWTClaims
+	var dbToken models.RefreshToken
+
+	claims, err = utils.ClaimsFromToken(token, as.privateKey.PublicKey)
+	if err != nil {
+		return fmt.Errorf("utils claims from token: %w", err)
+	}
+
+	dbToken, err = gorm.G[models.RefreshToken](as.db).Where("jti = ?",
+		claims.Jti, false).First(ctx)
+
+	if dbToken.Revoked {
+		return fmt.Errorf("token has been revoked")
+	}
+
+	dbToken.Revoked = true
+	as.db.Save(&dbToken)
 
 	return nil
 }

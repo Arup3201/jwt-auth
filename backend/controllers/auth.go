@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"example.com/go-jwt-auth/constants"
 	"example.com/go-jwt-auth/interfaces"
@@ -177,6 +178,56 @@ func (ac *authController) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(responseBody)
 }
 
+func (ac *authController) Refresh(w http.ResponseWriter, r *http.Request) {
+
+	refreshToken, err := utils.GetToken(constants.REFRESH_TOKEN_NAME, r.Cookies())
+	if err != nil {
+		log.Printf("[ERROR] utils get token: %s\n", err)
+
+		http.Error(w,
+			"Missing refresh token.",
+			http.StatusBadRequest)
+		return
+	}
+
+	tokens, err := ac.authService.Refresh(r.Context(), refreshToken)
+	if err != nil {
+		log.Printf("[ERROR] auth service refresh: %s\n", err)
+
+		http.Error(w,
+			"Encountered internal error.",
+			http.StatusInternalServerError)
+		return
+	}
+
+	accessTokenCookie := &http.Cookie{
+		Name:     constants.ACCESS_TOKEN_NAME,
+		Value:    tokens.AccessToken,
+		Expires:  tokens.AccessTokenExpiresAt,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, accessTokenCookie)
+
+	refreshTokenCookie := &http.Cookie{
+		Name:     constants.REFRESH_TOKEN_NAME,
+		Value:    tokens.RefreshToken,
+		Expires:  tokens.RefreshTokenExpiresAt,
+		Path:     constants.API_PATH + "/auth/refresh",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, refreshTokenCookie)
+
+	responseBody := map[string]any{
+		"message": "Tokens are refreshed.",
+	}
+	json.NewEncoder(w).Encode(responseBody)
+}
+
 func (ac *authController) PasswordResetEmail(w http.ResponseWriter, r *http.Request) {
 
 	type forgotPasswordReq struct {
@@ -240,6 +291,56 @@ func (ac *authController) ResetPassword(w http.ResponseWriter, r *http.Request) 
 		"message": "Password reset successful",
 	}
 	json.NewEncoder(w).Encode(responseBody)
+}
+
+func (ac *authController) Logout(w http.ResponseWriter, r *http.Request) {
+
+	refreshToken, err := utils.GetToken(constants.REFRESH_TOKEN_NAME, r.Cookies())
+	if err != nil {
+		log.Printf("[ERROR] utils get token: %s\n", err)
+
+		http.Error(w,
+			"Missing refresh token.",
+			http.StatusBadRequest)
+		return
+	}
+	err = ac.authService.Logout(r.Context(), refreshToken)
+	if err != nil {
+		log.Printf("[ERROR] auth service logout: %s\n", err)
+
+		http.Error(w,
+			"Encountered error while logout.",
+			http.StatusInternalServerError)
+		return
+	}
+
+	accessTokenCookie := &http.Cookie{
+		Name:     constants.ACCESS_TOKEN_NAME,
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, accessTokenCookie)
+
+	refreshTokenCookie := &http.Cookie{
+		Name:     constants.REFRESH_TOKEN_NAME,
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, refreshTokenCookie)
+
+	responseBody := map[string]any{
+		"message": "Logged out successfully",
+	}
+	json.NewEncoder(w).Encode(responseBody)
+
 }
 
 func (ac *authController) UserInfo(w http.ResponseWriter, r *http.Request) {

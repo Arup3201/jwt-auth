@@ -17,7 +17,9 @@ type Tokens struct {
 type AuthService interface {
 	Register(ctx context.Context, email, fullName, password string) (uint, error)
 	Login(ctx context.Context, email, password string) (*Tokens, error)
+	Refresh(ctx context.Context, token string) (*Tokens, error)
 	ResetPassword(ctx context.Context, token, password string) error
+	Logout(ctx context.Context, token string) error
 	GetUser(ctx context.Context, userId string) (models.User, error)
 }
 
