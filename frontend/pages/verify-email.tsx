@@ -14,7 +14,7 @@ const VerifyEmail = () => {
     (async function () {
       try {
         const response = await fetch(
-          `http://localhost:8080/api/email-verified?email=${email}`,
+          `http://localhost:8080/api/auth/email-verified?email=${email}`,
         );
         if (response.status === 200) {
           const json = await response.json();

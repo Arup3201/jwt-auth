@@ -15,15 +15,18 @@ const ForgotPassword = () => {
     }
 
     try {
-      const res = await fetch("http://localhost:8080/api/password-reset-link", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await fetch(
+        "http://localhost:8080/api/auth/password-reset-link",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: email,
+          }),
         },
-        body: JSON.stringify({
-          email: email,
-        }),
-      });
+      );
       if (res.status === 200) {
         console.log("Link to reset password is sent to the email address!");
         setIsSent(true);
