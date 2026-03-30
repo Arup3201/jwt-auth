@@ -53,18 +53,18 @@ func NewApp(db *gorm.DB,
 		time.Duration(refreshDurationInHours)*time.Hour)
 	authController := controllers.NewAuthController(authService, emailService)
 
-	mux.HandleFunc(fmt.Sprintf("POST /%s/auth/register", constants.API_PATH), authController.Register)
-	mux.HandleFunc(fmt.Sprintf("GET /%s/auth/verify-email", constants.API_PATH), authController.VerifyEmail)
-	mux.HandleFunc(fmt.Sprintf("GET /%s/auth/email-verified", constants.API_PATH), authController.EmailVerificationStatus)
-	mux.HandleFunc(fmt.Sprintf("POST /%s/auth/login", constants.API_PATH), authController.Login)
-	mux.HandleFunc(fmt.Sprintf("POST /%s/auth/refresh", constants.API_PATH), authController.Refresh)
-	mux.HandleFunc(fmt.Sprintf("POST /%s/auth/password-reset-link", constants.API_PATH), authController.PasswordResetEmail)
-	mux.HandleFunc(fmt.Sprintf("POST /%s/auth/reset-password", constants.API_PATH), authController.ResetPassword)
-	mux.HandleFunc(fmt.Sprintf("POST /%s/auth/logout", constants.API_PATH), authController.Logout)
+	mux.HandleFunc(fmt.Sprintf("POST %s/auth/register", constants.API_PATH), authController.Register)
+	mux.HandleFunc(fmt.Sprintf("GET %s/auth/verify-email", constants.API_PATH), authController.VerifyEmail)
+	mux.HandleFunc(fmt.Sprintf("GET %s/auth/email-verified", constants.API_PATH), authController.EmailVerificationStatus)
+	mux.HandleFunc(fmt.Sprintf("POST %s/auth/login", constants.API_PATH), authController.Login)
+	mux.HandleFunc(fmt.Sprintf("POST %s/auth/refresh", constants.API_PATH), authController.Refresh)
+	mux.HandleFunc(fmt.Sprintf("POST %s/auth/password-reset-link", constants.API_PATH), authController.PasswordResetEmail)
+	mux.HandleFunc(fmt.Sprintf("POST %s/auth/reset-password", constants.API_PATH), authController.ResetPassword)
+	mux.HandleFunc(fmt.Sprintf("POST %s/auth/logout", constants.API_PATH), authController.Logout)
 
 	authMiddleware := middlewares.NewAuthMiddleware(authService, &rsaKey.PublicKey)
-	mux.Handle(fmt.Sprintf("GET /%s/message", constants.API_PATH), authMiddleware.Next(http.HandlerFunc(authController.Welcome)))
-	mux.Handle(fmt.Sprintf("GET /%s/user-info", constants.API_PATH), authMiddleware.Next(http.HandlerFunc(authController.UserInfo)))
+	mux.Handle(fmt.Sprintf("GET %s/message", constants.API_PATH), authMiddleware.Next(http.HandlerFunc(authController.Welcome)))
+	mux.Handle(fmt.Sprintf("GET %s/user-info", constants.API_PATH), authMiddleware.Next(http.HandlerFunc(authController.UserInfo)))
 
 	return &App{
 		mux: mux,
