@@ -12,6 +12,10 @@ import (
 	"example.com/go-jwt-auth/utils"
 )
 
+var (
+	REFRESH_TOKEN_PATH = "/auth"
+)
+
 type authController struct {
 	authService  interfaces.AuthService
 	emailService interfaces.EmailService
@@ -165,7 +169,7 @@ func (ac *authController) Login(w http.ResponseWriter, r *http.Request) {
 		Name:     constants.REFRESH_TOKEN_NAME,
 		Value:    token.RefreshToken,
 		Expires:  token.RefreshTokenExpiresAt,
-		Path:     constants.API_PATH + "/auth/refresh",
+		Path:     constants.API_PATH + REFRESH_TOKEN_PATH,
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
@@ -215,7 +219,7 @@ func (ac *authController) Refresh(w http.ResponseWriter, r *http.Request) {
 		Name:     constants.REFRESH_TOKEN_NAME,
 		Value:    tokens.RefreshToken,
 		Expires:  tokens.RefreshTokenExpiresAt,
-		Path:     constants.API_PATH + "/auth/refresh",
+		Path:     constants.API_PATH + REFRESH_TOKEN_PATH,
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
