@@ -148,17 +148,27 @@ func (ac *authController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := &http.Cookie{
-		Name:     "AUTH_DATA",
-		Value:    token.Value,
-		Expires:  token.ExpiresAt,
+	accessTokenCookie := &http.Cookie{
+		Name:     "ACCESS_TOKEN",
+		Value:    token.AccessToken,
+		Expires:  token.AccessTokenExpiresAt,
 		Path:     "/",
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	}
+	http.SetCookie(w, accessTokenCookie)
 
-	http.SetCookie(w, cookie)
+	refreshTokenCookie := &http.Cookie{
+		Name:     "REFRESH_TOKEN",
+		Value:    token.RefreshToken,
+		Expires:  token.RefreshTokenExpiresAt,
+		Path:     "/api/auth/refresh",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, refreshTokenCookie)
 
 	responseBody := map[string]any{
 		"message": "Logged in successfully",

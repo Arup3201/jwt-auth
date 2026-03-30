@@ -14,6 +14,7 @@ import (
 
 	"example.com/go-jwt-auth/models"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 const (
@@ -26,6 +27,7 @@ const (
 )
 
 type JWTClaims struct {
+	Jti       string    `json:"jti"`
 	Issuer    string    `json:"iss"`
 	UserId    string    `json:"user_id"`
 	Subject   string    `json:"sub"`
@@ -36,8 +38,10 @@ type JWTClaims struct {
 
 func NewClaims(iss, sub, userId string, exp time.Time) *JWTClaims {
 	now := time.Now().UTC()
+	jti := uuid.NewString()
 
 	return &JWTClaims{
+		Jti:       jti,
 		Issuer:    iss,
 		Subject:   sub,
 		UserId:    userId,

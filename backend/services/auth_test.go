@@ -20,7 +20,8 @@ import (
 
 const (
 	TEST_HASH_COST        = 14
-	TEST_SESSION_DURATION = 1 * time.Minute
+	TEST_SESSION_DURATION = 15 * time.Minute
+	TEST_REFRESH_DURATION = 10 * 24 * time.Hour
 )
 
 func TestAuthService_Login(t *testing.T) {
@@ -48,7 +49,11 @@ func TestAuthService_Login(t *testing.T) {
 	err = gorm.G[models.User](db).Create(ctx, &testUser)
 	assert.NoError(t, err)
 
-	authService := NewAuthService(db, TEST_HASH_COST, priv, TEST_SESSION_DURATION)
+	authService := NewAuthService(db,
+		TEST_HASH_COST,
+		priv,
+		TEST_SESSION_DURATION,
+		TEST_REFRESH_DURATION)
 
 	t.Run("should login with not empty token", func(t *testing.T) {
 		tokenObj, err := authService.Login(ctx, testUser.Email, "vaew2Iehexi")
@@ -58,9 +63,11 @@ func TestAuthService_Login(t *testing.T) {
 	t.Run("should give token with user id", func(t *testing.T) {
 		tokenObj, _ := authService.Login(ctx, testUser.Email, "vaew2Iehexi")
 
-		token, err := jwt.ParseWithClaims(tokenObj.Value, &utils.CustomClaims{}, func(t *jwt.Token) (any, error) {
-			return &priv.PublicKey, nil
-		})
+		token, err := jwt.ParseWithClaims(tokenObj.AccessToken,
+			&utils.CustomClaims{},
+			func(t *jwt.Token) (any, error) {
+				return &priv.PublicKey, nil
+			})
 		if !assert.NoError(t, err) {
 			return
 		}

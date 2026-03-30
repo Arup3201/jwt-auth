@@ -22,6 +22,7 @@ type authService struct {
 	db              *gorm.DB
 	hashCost        int
 	sessionDuration time.Duration
+	refreshDuration time.Duration
 	privateKey      *rsa.PrivateKey
 	emailChecker    *regexp.Regexp
 }
@@ -29,7 +30,8 @@ type authService struct {
 func NewAuthService(db *gorm.DB,
 	hCost int,
 	privateKey *rsa.PrivateKey,
-	sessionDuration time.Duration) interfaces.AuthService {
+	sessionDuration time.Duration,
+	refreshDuration time.Duration) interfaces.AuthService {
 
 	var emailRegex, _ = regexp.Compile(
 		`^[a-zA-Z0-9]+([._-][0-9a-zA-Z]+)*@[a-zA-Z0-9]+([.-][0-9a-zA-Z]+)*\.[a-zA-Z]{2,}$`,
@@ -39,6 +41,7 @@ func NewAuthService(db *gorm.DB,
 		db:              db,
 		hashCost:        hCost,
 		sessionDuration: sessionDuration,
+		refreshDuration: refreshDuration,
 		emailChecker:    emailRegex,
 		privateKey:      privateKey,
 	}
@@ -77,7 +80,7 @@ func (as *authService) Register(ctx context.Context,
 }
 
 func (as *authService) Login(ctx context.Context,
-	email, password string) (*interfaces.Token, error) {
+	email, password string) (*interfaces.Tokens, error) {
 
 	user, err := gorm.G[models.User](as.db).Where("email = ?", email).First(ctx)
 	if err != nil {
@@ -98,27 +101,55 @@ func (as *authService) Login(ctx context.Context,
 	}
 
 	var issuer, subject, userId string
-	var expiry time.Time
+	var accessToken, refreshToken string
+	var accessExpiry, refreshExpiry time.Time
+	var jwt *utils.JWT
 
 	issuer = ISSUER
 	userId = strconv.Itoa(int(user.ID))
 	subject = userId
-	expiry = time.Now().Add(as.sessionDuration)
-	claims := utils.NewClaims(issuer, subject, userId, expiry)
 
-	jwt, err := utils.JWTFromClaims(claims, utils.JWT_ALG_RSA)
+	accessExpiry = time.Now().Add(as.sessionDuration)
+	accessClaims := utils.NewClaims(issuer, subject, userId, accessExpiry)
+	jwt, err = utils.JWTFromClaims(accessClaims, utils.JWT_ALG_RSA)
 	if err != nil {
 		return nil, fmt.Errorf("utils jwt from claims: %w", err)
 	}
 
-	token, err := jwt.Sign(as.privateKey)
+	accessToken, err = jwt.Sign(as.privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("jwt sign: %w", err)
 	}
 
-	return &interfaces.Token{
-		Value:     token,
-		ExpiresAt: expiry,
+	refreshExpiry = time.Now().Add(as.refreshDuration)
+	refreshClaims := utils.NewClaims(issuer, subject, userId, refreshExpiry)
+	jwt, err = utils.JWTFromClaims(refreshClaims, utils.JWT_ALG_RSA)
+	if err != nil {
+		return nil, fmt.Errorf("utils jwt from claims: %w", err)
+	}
+
+	dbToken := models.RefreshToken{
+		Jti:       refreshClaims.Jti,
+		UserId:    user.ID,
+		Revoked:   false,
+		CreatedAt: refreshClaims.IssuedAt,
+		UpdatedAt: refreshClaims.IssuedAt,
+	}
+	err = gorm.G[models.RefreshToken](as.db).Create(ctx, &dbToken)
+	if err != nil {
+		return nil, fmt.Errorf("db refresh token create: %w", err)
+	}
+
+	refreshToken, err = jwt.Sign(as.privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("jwt sign: %w", err)
+	}
+
+	return &interfaces.Tokens{
+		AccessToken:           accessToken,
+		AccessTokenExpiresAt:  accessExpiry,
+		RefreshToken:          refreshToken,
+		RefreshTokenExpiresAt: refreshExpiry,
 	}, nil
 }
 

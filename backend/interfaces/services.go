@@ -7,14 +7,16 @@ import (
 	"example.com/go-jwt-auth/models"
 )
 
-type Token struct {
-	Value     string
-	ExpiresAt time.Time
+type Tokens struct {
+	AccessToken           string
+	RefreshToken          string
+	AccessTokenExpiresAt  time.Time
+	RefreshTokenExpiresAt time.Time
 }
 
 type AuthService interface {
 	Register(ctx context.Context, email, fullName, password string) (uint, error)
-	Login(ctx context.Context, email, password string) (*Token, error)
+	Login(ctx context.Context, email, password string) (*Tokens, error)
 	ResetPassword(ctx context.Context, token, password string) error
 	GetUser(ctx context.Context, userId string) (models.User, error)
 }

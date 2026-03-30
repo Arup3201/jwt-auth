@@ -38,7 +38,8 @@ type App struct {
 func NewApp(db *gorm.DB,
 	hashCost int,
 	rsaKey *rsa.PrivateKey,
-	sessionDurationInSec int,
+	sessionDurationInMin int,
+	refreshDurationInHours int,
 	resendApiKey string) *App {
 
 	mux := http.NewServeMux()
@@ -47,7 +48,8 @@ func NewApp(db *gorm.DB,
 	authService := services.NewAuthService(db,
 		hashCost,
 		rsaKey,
-		time.Duration(sessionDurationInSec)*time.Second)
+		time.Duration(sessionDurationInMin)*time.Minute,
+		time.Duration(refreshDurationInHours)*time.Hour)
 	authController := controllers.NewAuthController(authService, emailService)
 
 	mux.HandleFunc("POST /api/register", authController.Register)
@@ -109,7 +111,13 @@ func main() {
 		log.Fatalf("rsa generate key: %s\n", err)
 	}
 
-	app := NewApp(db, 14, priv, 10, RESEND_API_KEY)
+	app := NewApp(db,
+		14, // Password hash cost
+		priv,
+		15,    // Access Token Duration
+		10*24, // Refresh Token Duration
+		RESEND_API_KEY,
+	)
 
 	err = app.Start("localhost", "8080")
 	if err != nil {
