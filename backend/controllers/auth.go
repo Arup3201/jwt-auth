@@ -144,7 +144,7 @@ func (ac *authController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := ac.authService.Login(r.Context(), data.Email, data.Password)
+	tokens, err := ac.authService.Login(r.Context(), data.Email, data.Password)
 	if err != nil {
 		log.Printf("[ERROR] auth service login: %s\n", err)
 
@@ -154,21 +154,10 @@ func (ac *authController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessTokenCookie := &http.Cookie{
-		Name:     constants.ACCESS_TOKEN_NAME,
-		Value:    token.AccessToken,
-		Expires:  token.AccessTokenExpiresAt,
-		Path:     "/",
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-	}
-	http.SetCookie(w, accessTokenCookie)
-
 	refreshTokenCookie := &http.Cookie{
 		Name:     constants.REFRESH_TOKEN_NAME,
-		Value:    token.RefreshToken,
-		Expires:  token.RefreshTokenExpiresAt,
+		Value:    tokens.RefreshToken,
+		Expires:  tokens.RefreshTokenExpiresAt,
 		Path:     constants.API_PATH + REFRESH_TOKEN_PATH,
 		Secure:   true,
 		HttpOnly: true,
@@ -177,7 +166,8 @@ func (ac *authController) Login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, refreshTokenCookie)
 
 	responseBody := map[string]any{
-		"message": "Logged in successfully",
+		"access_token": tokens.AccessToken,
+		"expires_at":   tokens.AccessTokenExpiresAt,
 	}
 	json.NewEncoder(w).Encode(responseBody)
 }
@@ -204,17 +194,6 @@ func (ac *authController) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessTokenCookie := &http.Cookie{
-		Name:     constants.ACCESS_TOKEN_NAME,
-		Value:    tokens.AccessToken,
-		Expires:  tokens.AccessTokenExpiresAt,
-		Path:     "/",
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-	}
-	http.SetCookie(w, accessTokenCookie)
-
 	refreshTokenCookie := &http.Cookie{
 		Name:     constants.REFRESH_TOKEN_NAME,
 		Value:    tokens.RefreshToken,
@@ -227,7 +206,8 @@ func (ac *authController) Refresh(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, refreshTokenCookie)
 
 	responseBody := map[string]any{
-		"message": "Tokens are refreshed.",
+		"access_token": tokens.AccessToken,
+		"expires_at":   tokens.AccessTokenExpiresAt,
 	}
 	json.NewEncoder(w).Encode(responseBody)
 }
@@ -317,17 +297,6 @@ func (ac *authController) Logout(w http.ResponseWriter, r *http.Request) {
 			http.StatusInternalServerError)
 		return
 	}
-
-	accessTokenCookie := &http.Cookie{
-		Name:     constants.ACCESS_TOKEN_NAME,
-		Value:    "",
-		Expires:  time.Unix(0, 0),
-		Path:     "/",
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-	}
-	http.SetCookie(w, accessTokenCookie)
 
 	refreshTokenCookie := &http.Cookie{
 		Name:     constants.REFRESH_TOKEN_NAME,
