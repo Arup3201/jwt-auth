@@ -333,7 +333,7 @@ func (ac *authController) Logout(w http.ResponseWriter, r *http.Request) {
 		Name:     constants.REFRESH_TOKEN_NAME,
 		Value:    "",
 		Expires:  time.Unix(0, 0),
-		Path:     "/",
+		Path:     constants.API_PATH + "/auth",
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
@@ -344,7 +344,6 @@ func (ac *authController) Logout(w http.ResponseWriter, r *http.Request) {
 		"message": "Logged out successfully",
 	}
 	json.NewEncoder(w).Encode(responseBody)
-
 }
 
 func (ac *authController) UserInfo(w http.ResponseWriter, r *http.Request) {

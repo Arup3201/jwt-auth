@@ -304,7 +304,7 @@ func (as *authService) Logout(ctx context.Context, token string) error {
 	var claims *utils.JWTClaims
 	var dbToken models.RefreshToken
 
-	claims, err = utils.ClaimsFromToken(token, as.privateKey.PublicKey)
+	claims, err = utils.ClaimsFromToken(token, &as.privateKey.PublicKey)
 	if err != nil {
 		return fmt.Errorf("utils claims from token: %w", err)
 	}

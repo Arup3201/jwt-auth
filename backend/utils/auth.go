@@ -58,6 +58,7 @@ func ClaimsFromToken(tokenString string, key any) (*JWTClaims, error) {
 	}
 
 	jwtClaims := JWTClaims{
+		Jti:       claims.Jti,
 		Issuer:    claims.Issuer,
 		Subject:   claims.Subject,
 		UserId:    claims.UserId,
@@ -70,6 +71,7 @@ func ClaimsFromToken(tokenString string, key any) (*JWTClaims, error) {
 }
 
 type CustomClaims struct {
+	Jti    string `json:"jti"`
 	UserId string `json:"user_id"`
 	jwt.RegisteredClaims
 }
@@ -105,6 +107,7 @@ func JWTFromClaims(claims *JWTClaims,
 func (t *JWT) Sign(key any) (string, error) {
 
 	claims := CustomClaims{
+		Jti:    t.Claims.Jti,
 		UserId: t.Claims.UserId,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(t.Claims.Expiry),
