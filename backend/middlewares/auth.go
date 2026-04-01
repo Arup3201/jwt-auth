@@ -4,8 +4,8 @@ import (
 	"crypto/rsa"
 	"log"
 	"net/http"
+	"strings"
 
-	"example.com/go-jwt-auth/constants"
 	"example.com/go-jwt-auth/interfaces"
 	"example.com/go-jwt-auth/utils"
 )
@@ -28,15 +28,22 @@ func NewAuthMiddleware(authService interfaces.AuthService,
 
 func (m *authMiddleware) Next(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := utils.GetToken(constants.ACCESS_TOKEN_NAME, r.Cookies())
-		if err != nil {
-			log.Printf("[ERROR] get token: %s\n", err)
+		bearer := r.Header.Get("Authorization")
+		if strings.Trim(bearer, " ") == "" {
+			log.Printf("[ERROR] missing bearer token\n")
 
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			http.Error(w, "Authorization token missing", http.StatusUnauthorized)
+			return
+		}
+		bearerToken := strings.Fields(bearer)
+		if bearerToken[0] != "Bearer" {
+			log.Printf("[ERROR] not a bearer token\n")
+
+			http.Error(w, "Malformed authorization token", http.StatusUnauthorized)
 			return
 		}
 
-		claims, err := utils.ClaimsFromToken(token, m.publicKey)
+		claims, err := utils.ClaimsFromToken(bearerToken[1], m.publicKey)
 		if err != nil {
 			log.Printf("[ERROR] claims from token: %s\n", err)
 
