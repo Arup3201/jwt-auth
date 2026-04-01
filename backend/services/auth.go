@@ -161,7 +161,7 @@ func (as *authService) Refresh(ctx context.Context,
 	var claims *utils.JWTClaims
 	var dbToken models.RefreshToken
 
-	claims, err = utils.ClaimsFromToken(token, as.privateKey.PublicKey)
+	claims, err = utils.ClaimsFromToken(token, &as.privateKey.PublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("utils claims from token: %w", err)
 	}
@@ -215,7 +215,7 @@ func (as *authService) Refresh(ctx context.Context,
 			CreatedAt: refreshClaims.IssuedAt,
 			UpdatedAt: refreshClaims.IssuedAt,
 		}
-		err = gorm.G[models.RefreshToken](as.db).Create(ctx, &dbToken)
+		err = gorm.G[models.RefreshToken](tx).Create(ctx, &dbToken)
 		if err != nil {
 			return fmt.Errorf("refresh token create: %w", err)
 		}
