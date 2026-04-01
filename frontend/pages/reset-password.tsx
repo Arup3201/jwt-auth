@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router";
+import { API_ROOT } from "../utils/api";
 
 const ResetPassword = () => {
   const [searchParams, _] = useSearchParams();
@@ -26,7 +27,7 @@ const ResetPassword = () => {
     }
 
     try {
-      const res = await fetch("http://localhost:8080/api/auth/reset-password", {
+      const res = await fetch(API_ROOT + "/auth/reset-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

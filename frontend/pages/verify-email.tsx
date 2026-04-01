@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
+import { API_ROOT } from "../utils/api";
 
 const VerifyEmail = () => {
   const [searchParams, _] = useSearchParams();
@@ -9,12 +10,12 @@ const VerifyEmail = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!email || email === "") return;
+    if (!email || email.trim() === "") return;
 
     (async function () {
       try {
         const response = await fetch(
-          `http://localhost:8080/api/auth/email-verified?email=${email}`,
+          API_ROOT + `/auth/email-verified?email=${email}`,
         );
         if (response.status === 200) {
           const json = await response.json();

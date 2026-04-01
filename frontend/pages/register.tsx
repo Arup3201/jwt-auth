@@ -1,17 +1,19 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useAuth } from "../contexts/auth";
 
 const Register = () => {
-  const navigate = useNavigate();
+  const { register } = useAuth();
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit: React.SubmitEventHandler = async (e) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     if (email === "") {
       setError("Email is required");
@@ -27,27 +29,15 @@ const Register = () => {
     }
 
     try {
-      const res = await fetch("http://localhost:8080/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email,
-          full_name: name,
-          password: password,
-        }),
+      await register({
+        email: email.trim(),
+        name: name.trim(),
+        password: password,
       });
-      if (res.status === 201) {
-        console.log("User created!");
-        navigate(`/verify-email?email=${email}`);
-      } else {
-        throw new Error(
-          "User registration failed with status" + res.status + "!",
-        );
-      }
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -78,9 +68,10 @@ const Register = () => {
         {error && <p className="text-red-500 text-sm">{error}</p>}
         <button
           type="submit"
+          disabled={loading}
           className="bg-blue-500 text-white p-2 rounded cursor-pointer"
         >
-          Register
+          {!loading ? "Register" : "Registering..."}
         </button>
       </form>
 

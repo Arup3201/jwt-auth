@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router";
+import { useAuth } from "../contexts/auth";
 
 const NAVS = [
   {
@@ -11,28 +12,7 @@ const NAVS = [
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
-  const logout = async () => {
-    try {
-      const response = await fetch("http://localhost:8080/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      if (response.status === 200) {
-        navigate("/login");
-        console.log("logging out...");
-      } else {
-        throw new Error(
-          "API request for message failed with status " + response.status,
-        );
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const { logout } = useAuth();
 
   return (
     <ul className="flex gap-4 bg-blue-50 justify-center p-2 mx-auto">
@@ -56,7 +36,7 @@ const Navbar = () => {
       })}
       <li
         className="p-2 rounded text-gray-700 cursor-pointer bg-blue-100 ml-auto"
-        onClick={() => logout()}
+        onClick={async () => await logout()}
       >
         Logout
       </li>

@@ -1,17 +1,19 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useAuth } from "../contexts/auth";
 
 const Login = () => {
-  const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit: React.SubmitEventHandler = async (e) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     if (email === "") {
       setError("Email is required");
@@ -23,25 +25,11 @@ const Login = () => {
     }
 
     try {
-      const res = await fetch("http://localhost:8080/api/auth/login", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email,
-          password: password,
-        }),
-      });
-      if (res.status === 200) {
-        console.log("User logged in!");
-        navigate("/");
-      } else {
-        throw new Error("User login failed with status" + res.status + "!");
-      }
+      await login({ email: email.trim(), password: password });
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -80,9 +68,10 @@ const Login = () => {
         {error && <p className="text-red-500 text-sm">{error}</p>}
         <button
           type="submit"
+          disabled={loading}
           className="bg-blue-500 text-white p-2 rounded cursor-pointer"
         >
-          Login
+          {loading ? "Logging in..." : "Login"}
         </button>
       </form>
       <span>

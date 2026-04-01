@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { ApiFetch } from "../utils/api";
 
 interface User {
   id: string;
@@ -9,8 +9,6 @@ interface User {
 }
 
 const Home = () => {
-  const navigate = useNavigate();
-
   const [serverMessage, setServerMessage] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -21,29 +19,17 @@ const Home = () => {
     setError(null);
 
     try {
-      const res = await fetch("http://localhost:8080/api/user-info", {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      if (res.status === 200) {
-        const userInfo = await res.json();
-        if (userInfo) {
-          setUser({
-            id: userInfo.id,
-            email: userInfo.email,
-            fullName: userInfo.full_name,
-            createdAt: userInfo.created_at,
-          });
-        } else {
-          throw new Error("Failed to get user information");
-        }
+      const res = await ApiFetch("/user-info");
+      const userInfo = await res.json();
+      if (userInfo) {
+        setUser({
+          id: userInfo.id,
+          email: userInfo.email,
+          fullName: userInfo.full_name,
+          createdAt: userInfo.created_at,
+        });
       } else {
-        throw new Error(
-          "Failed to get user information with status " + res.status,
-        );
+        throw new Error("Failed to get user information");
       }
     } catch (err) {
       if (err instanceof Error) setError(err.message);
@@ -56,27 +42,12 @@ const Home = () => {
   useEffect(() => {
     (async function () {
       try {
-        const response = await fetch("http://localhost:8080/api/message", {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        if (response.status === 401) {
-          console.error("User not logged in!");
-          navigate("/login");
-        } else if (response.status === 200) {
-          const json = await response.json();
-          if (json.message) {
-            setServerMessage(json.message);
-          } else {
-            throw new Error("No message received");
-          }
+        const response = await ApiFetch("/message");
+        const data = await response.json();
+        if (data.message) {
+          setServerMessage(data.message);
         } else {
-          throw new Error(
-            "API request for message failed with status " + response.status,
-          );
+          throw new Error("No message received");
         }
       } catch (err) {
         console.error(err);
