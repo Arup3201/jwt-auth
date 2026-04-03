@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { API_ROOT, ApiFetch } from "../utils/api";
+import { API_ROOT, ApiFetch, getValidToken } from "../utils/api";
 import { tokenStore } from "../utils/token";
 
 interface RegisterParams {
@@ -93,6 +93,22 @@ const AuthProvider: React.FC<AuthProviderInterface> = ({ children }) => {
     window.addEventListener("auth:logout", logout);
     return () => window.removeEventListener("auth:logout", logout);
   }, [logout]);
+
+  async function refreshToken() {
+    try {
+      await getValidToken();
+    } catch (err) {
+      console.error(err);
+      navigate("/login");
+    }
+  }
+
+  useEffect(() => {
+    const token = tokenStore.get();
+    if (token === null) {
+      refreshToken();
+    }
+  }, []);
 
   return (
     <authContext.Provider

@@ -69,4 +69,4 @@ async function getValidToken() {
   return refreshingPromise;
 }
 
-export { API_ROOT, ApiFetch };
+export { API_ROOT, ApiFetch, getValidToken };
