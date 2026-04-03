@@ -33,3 +33,6 @@ go.work.sum
 
 # Database files
 db/*
+
+# SHA Key pairs
+*.key

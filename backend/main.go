@@ -1,8 +1,9 @@
 package main
 
 import (
-	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"log"
 	"net/http"
@@ -89,6 +90,22 @@ func (a *App) Start(host, port string) error {
 	return nil
 }
 
+func readRSAPrivateKey(filename string) (*rsa.PrivateKey, error) {
+	bytes, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("read file: %w", err)
+	}
+
+	block, _ := pem.Decode(bytes)
+	parseResult, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("x509 parse pkce#1 private key: %w", err)
+	}
+
+	privateKey := parseResult.(*rsa.PrivateKey)
+	return privateKey, nil
+}
+
 func main() {
 	var err error
 	var db *gorm.DB
@@ -110,14 +127,14 @@ func main() {
 		log.Fatal("Missing RESEND_API_KEY\n")
 	}
 
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	privateKey, err := readRSAPrivateKey("private.key")
 	if err != nil {
 		log.Fatalf("rsa generate key: %s\n", err)
 	}
 
 	app := NewApp(db,
 		14, // Password hash cost
-		priv,
+		privateKey,
 		15,    // Access Token Duration
 		10*24, // Refresh Token Duration
 		RESEND_API_KEY,
